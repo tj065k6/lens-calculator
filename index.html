@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="鏡片計算">
+<meta name="theme-color" content="#0077B6">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>鏡片厚度計算</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F2F6FF;min-height:100vh}
+
+/* Header */
+.hdr{background:#0077B6;padding:env(safe-area-inset-top,0) 0 0;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,119,182,0.3)}
+.hdr-inner{padding:14px 20px 16px}
+.hdr h1{color:#fff;font-size:20px;font-weight:800}
+.hdr p{color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px}
+
+/* Main */
+.main{padding:14px;display:flex;flex-direction:column;gap:12px;max-width:500px;margin:0 auto;padding-bottom:calc(env(safe-area-inset-bottom,0) + 20px)}
+
+/* Card */
+.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06)}
+.card-title{font-size:10px;font-weight:800;color:#0077B6;letter-spacing:1.2px;margin-bottom:12px}
+
+/* Grid layouts */
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Field */
+.field label{display:block;font-size:10px;font-weight:700;color:#555;margin-bottom:5px;line-height:1.3}
+.iw{display:flex;align-items:center;background:#EEF4FF;border:2px solid #BBDEFB;border-radius:10px;overflow:hidden;transition:border-color .2s}
+.iw:focus-within{border-color:#0077B6}
+.iw input{flex:1;border:none;background:transparent;padding:10px 8px;font-size:18px;font-weight:800;color:#111;outline:none;min-width:0;width:100%}
+.iw .u{padding:0 10px;font-size:11px;font-weight:700;color:#0077B6;flex-shrink:0}
+.div{height:1px;background:#f0f4f8;margin:12px 0}
+
+/* Prism section */
+.prism-wrap{background:#F5F0FF;border-radius:12px;padding:12px}
+.prism-label{font-size:10px;font-weight:800;color:#6A1B9A;margin-bottom:8px}
+.sub-label{font-size:9px;font-weight:700;color:#888;margin-bottom:6px}
+.piw{display:flex;align-items:center;background:#EDE7F6;border:2px solid #CE93D8;border-radius:10px;overflow:hidden;transition:border-color .2s}
+.piw:focus-within{border-color:#7B1FA2}
+.piw input{flex:1;border:none;background:transparent;padding:10px 8px;font-size:18px;font-weight:800;color:#4A148C;outline:none;min-width:0;width:100%}
+.piw .pu{padding:0 10px;font-size:11px;font-weight:700;color:#7B1FA2;flex-shrink:0}
+.resultant{margin-top:10px;background:#7B1FA2;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.rl{font-size:10px;font-weight:700;color:rgba(255,255,255,0.8)}
+.rd{font-size:9px;color:rgba(255,255,255,0.6);margin-top:2px}
+.rv{font-size:20px;font-weight:900;color:#fff}
+
+/* Center thickness */
+.ct-row{display:flex;gap:8px;align-items:flex-end}
+.preset-row{display:flex;gap:5px}
+.pbt{border:2px solid #ddd;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;background:#fff;color:#aaa;transition:all .15s}
+.pbt.on{background:#FFF3E0;border-color:#FF9800;color:#E65100}
+
+/* Refractive index */
+.n-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.nb{border:2px solid #e8e8e8;border-radius:10px;padding:8px 2px;text-align:center;cursor:pointer;transition:all .15s;background:#fff}
+.nb.on{border-color:#0077B6;background:#E3F2FD}
+.nv{font-size:13px;font-weight:800;display:block;color:#aaa}
+.nb.on .nv{color:#0077B6}
+.nl{font-size:8px;color:#ccc;display:block;margin-top:2px}
+.nb.on .nl{color:#64B5F6}
+
+/* Calculate button */
+.calc-btn{width:100%;background:#0077B6;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;cursor:pointer;margin-top:4px;transition:background .15s;-webkit-appearance:none}
+.calc-btn:active{background:#005f8e}
+
+/* Results */
+#results{display:none;flex-direction:column;gap:12px}
+
+/* Diagram */
+.diag-tabs{display:flex;gap:6px;margin-bottom:12px}
+.dtab{flex:1;border:2px solid;border-radius:10px;padding:8px 6px;text-align:center;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s}
+.dtab.minus-active{border-color:#1976D2;background:#E3F2FD;color:#0D47A1}
+.dtab.minus-inactive{border-color:#e8e8e8;background:#fff;color:#bbb}
+.dtab.plus-active{border-color:#E65100;background:#FFF3E0;color:#E65100}
+.dtab.plus-inactive{border-color:#e8e8e8;background:#fff;color:#bbb}
+
+.result-badges{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.badge{border-left:4px solid;border-radius:0 12px 12px 0;padding:12px 14px}
+.badge .bl{font-size:9px;font-weight:800}
+.badge .bs{font-size:8px;color:#aaa;margin-top:2px;margin-bottom:4px}
+.badge .bv{font-size:26px;font-weight:900;line-height:1}
+.badge .bu{font-size:11px;font-weight:600;color:#aaa}
+
+/* Compare table */
+.tbl{border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06)}
+.thead{background:#0077B6;display:grid;grid-template-columns:1.2fr 0.9fr 0.9fr 0.7fr;padding:10px 14px}
+.thead span{color:#fff;font-size:10px;font-weight:700;text-align:center}
+.thead span:first-child{text-align:left}
+.trow{background:#fff;display:grid;grid-template-columns:1.2fr 0.9fr 0.9fr 0.7fr;padding:10px 14px;border-bottom:1px solid #f4f4f4;align-items:center}
+.trow:last-child{border-bottom:none}
+.trow.hl{background:#E3F2FD}
+.nn{font-size:13px;font-weight:800;color:#333}
+.nt{font-size:8px;color:#aaa;display:block}
+.tv{text-align:center;font-size:13px;font-weight:800}
+.sv{text-align:center;font-size:11px;font-weight:700;color:#43A047}
+
+/* Bar chart */
+.bar-wrap{display:flex;flex-direction:column;gap:8px}
+.br{display:flex;align-items:center;gap:8px}
+.brl{font-size:10px;font-weight:800;width:30px;flex-shrink:0}
+.brt{flex:1;height:13px;background:#f0f0f0;border-radius:7px;overflow:hidden}
+.brf{height:100%;border-radius:7px;transition:width .4s ease}
+.brv{font-size:11px;font-weight:800;width:42px;text-align:right;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-inner">
+    <h1>鏡片厚度計算</h1>
+    <p>Lens Thickness Calculator</p>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <div class="card-title">INPUT 輸入參數</div>
+
+    <!-- Sphere / Cyl / Axis -->
+    <div class="g3">
+      <div class="field"><label>球面 Sphere</label><div class="iw"><input id="sphere" type="number" step="0.25" placeholder="0.00"><span class="u">D</span></div></div>
+      <div class="field"><label>散光 Cylinder</label><div class="iw"><input id="cyl" type="number" step="0.25" placeholder="0.00"><span class="u">D</span></div></div>
+      <div class="field"><label>軸度 Axis</label><div class="iw"><input id="axis" type="number" min="0" max="180" placeholder="0"><span class="u">°</span></div></div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Prism -->
+    <div class="prism-wrap">
+      <div class="prism-label">稜鏡 PRISM（選填）</div>
+      <div style="margin-bottom:10px">
+        <div class="sub-label">水平 Horizontal</div>
+        <div class="g2">
+          <div class="field"><label>BO 外底</label><div class="piw"><input id="pbo" type="number" step="0.25" value="0"><span class="pu">△</span></div></div>
+          <div class="field"><label>BI 內底</label><div class="piw"><input id="pbi" type="number" step="0.25" value="0"><span class="pu">△</span></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="sub-label">垂直 Vertical</div>
+        <div class="g2">
+          <div class="field"><label>BU 上底</label><div class="piw"><input id="pbu" type="number" step="0.25" value="0"><span class="pu">△</span></div></div>
+          <div class="field"><label>BD 下底</label><div class="piw"><input id="pbd" type="number" step="0.25" value="0"><span class="pu">△</span></div></div>
+        </div>
+      </div>
+      <div class="resultant" id="resultant-display">
+        <div>
+          <div class="rl">合成稜鏡 Resultant Prism</div>
+          <div class="rd" id="prism-dir">請輸入稜鏡值</div>
+        </div>
+        <div class="rv" id="prism-val">— △</div>
+      </div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Frame -->
+    <div class="g3">
+      <div class="field"><label>框寬 A</label><div class="iw"><input id="fa" type="number" step="1" placeholder="52"><span class="u">mm</span></div></div>
+      <div class="field"><label>框高 B</label><div class="iw"><input id="fb" type="number" step="1" placeholder="38"><span class="u">mm</span></div></div>
+      <div class="field"><label>鼻樑 DBL</label><div class="iw"><input id="dbl" type="number" step="1" placeholder="18"><span class="u">mm</span></div></div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- PD + FH -->
+    <div class="g2">
+      <div class="field"><label>單眼瞳距 PD</label><div class="iw"><input id="pd" type="number" step="0.5" placeholder="32"><span class="u">mm</span></div></div>
+      <div class="field"><label>眼位高 FH</label><div class="iw"><input id="fh" type="number" step="0.5" placeholder="20"><span class="u">mm</span></div></div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Center thickness -->
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#555;margin-bottom:8px">中心厚度 Center Thickness</div>
+      <div class="ct-row">
+        <div class="field" style="flex:1">
+          <div class="iw" style="border-color:#FFB74D;background:#FFF8E1">
+            <input id="ct" type="number" step="0.1" value="1.5" style="color:#E65100">
+            <span class="u" style="color:#E65100">mm</span>
+          </div>
+        </div>
+        <div class="preset-row">
+          <button class="pbt on" onclick="setPreset(this,1.5)">全框</button>
+          <button class="pbt" onclick="setPreset(this,2.0)">半框</button>
+          <button class="pbt" onclick="setPreset(this,2.5)">無框</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Refractive index -->
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#555;margin-bottom:8px">折射率 Refractive Index</div>
+      <div class="n-grid">
+        <div class="nb" data-n="1.50" onclick="selectN(this)"><span class="nv">1.50</span><span class="nl">標準</span></div>
+        <div class="nb" data-n="1.56" onclick="selectN(this)"><span class="nv">1.56</span><span class="nl">輕薄</span></div>
+        <div class="nb on" data-n="1.60" onclick="selectN(this)"><span class="nv">1.60</span><span class="nl">薄</span></div>
+        <div class="nb" data-n="1.67" onclick="selectN(this)"><span class="nv">1.67</span><span class="nl">超薄</span></div>
+        <div class="nb" data-n="1.74" onclick="selectN(this)"><span class="nv">1.74</span><span class="nl">極薄</span></div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">計算厚度 Calculate</button>
+  </div>
+
+  <!-- RESULTS (hidden until calculated) -->
+  <div id="results">
+
+    <!-- Diagram card -->
+    <div class="card">
+      <div class="card-title">鏡片截面圖 LENS CROSS-SECTION</div>
+      <div class="diag-tabs" id="diag-tabs">
+        <div class="dtab" id="tab-minus" onclick="showTab('minus')">近視（－）新月形</div>
+        <div class="dtab" id="tab-plus"  onclick="showTab('plus')">遠視（＋）雙凸</div>
+      </div>
+      <svg id="lens-svg" width="100%" viewBox="0 0 320 160"></svg>
+      <div class="result-badges" id="badges"></div>
+    </div>
+
+    <!-- Compare table -->
+    <div class="tbl">
+      <div class="thead">
+        <span>折射率</span>
+        <span id="th-center">中心厚</span>
+        <span id="th-edge">邊緣最厚</span>
+        <span>節省</span>
+      </div>
+      <div id="tbl-body"></div>
+    </div>
+
+    <!-- Bar chart -->
+    <div class="card">
+      <div class="card-title">邊緣厚度比較 EDGE THICKNESS CHART</div>
+      <div class="bar-wrap" id="bar-wrap"></div>
+    </div>
+
+  </div><!-- /results -->
+
+</div><!-- /main -->
+
+<script>
+// ── Prism live update ──────────────────────────────────────────
+['pbo','pbi','pbu','pbd'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePrism);
+});
+function updatePrism() {
+  const ph = (parseFloat(document.getElementById('pbo').value)||0)
+           - (parseFloat(document.getElementById('pbi').value)||0);
+  const pv = (parseFloat(document.getElementById('pbu').value)||0)
+           - (parseFloat(document.getElementById('pbd').value)||0);
+  const pRes = Math.sqrt(ph*ph + pv*pv);
+  const ang  = Math.atan2(pv, ph) * 180 / Math.PI;
+
+  document.getElementById('prism-val').textContent =
+    pRes > 0.01 ? pRes.toFixed(2) + ' △' : '0.00 △';
+
+  let dir = '無稜鏡 No prism';
+  if (pRes > 0.01) {
+    const hDir = ph > 0 ? 'BO' : ph < 0 ? 'BI' : '';
+    const vDir = pv > 0 ? 'BU' : pv < 0 ? 'BD' : '';
+    const combo = [hDir, vDir].filter(Boolean).join('+');
+    dir = Math.abs(ang).toFixed(0) + '° (' + combo + ')';
+  }
+  document.getElementById('prism-dir').textContent = dir;
+}
+
+// ── N selector ─────────────────────────────────────────────────
+function selectN(el) {
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── Center thickness preset ─────────────────────────────────────
+function setPreset(btn, val) {
+  document.querySelectorAll('.pbt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('ct').value = val;
+}
+
+// ── Core calculation ───────────────────────────────────────────
+function edgeThicknesses(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, tCenter, PBO, PBI, PBU, PBD) {
+  const indices = [1.50, 1.56, 1.60, 1.67, 1.74];
+  const ph = PBO - PBI, pv = PBU - PBD;
+  const a = A/2, b = B/2;
+  const decIn = (A + DBL)/2 - PD;
+  // Frame center relative to OC: temporal+ x, superior+ y
+  const cx = decIn, cy = b - FH;
+  const N = 720;
+
+  return indices.map(n => {
+    let tMax = -Infinity, tMin = Infinity;
+    let maxAng = 0, minAng = 0;
+    for (let i = 0; i < N; i++) {
+      const theta = i * 2 * Math.PI / N;
+      const cosT = Math.cos(theta), sinT = Math.sin(theta);
+      // Ellipse intersection
+      const qa = (cosT/a)**2 + (sinT/b)**2;
+      const qb = -2*(cx*cosT/(a*a) + cy*sinT/(b*b));
+      const qc = (cx/a)**2 + (cy/b)**2 - 1;
+      const disc = qb*qb - 4*qa*qc;
+      if (disc < 0) continue;
+      const r = Math.max((-qb+Math.sqrt(disc))/(2*qa), (-qb-Math.sqrt(disc))/(2*qa));
+      if (r <= 0) continue;
+      // Power at meridian
+      const Ft = Fsph + Fcyl * Math.sin(theta - axisRad)**2;
+      // Prism contribution
+      const x = r*cosT, y = r*sinT;
+      const tTotal = tCenter
+        - Ft * r*r / (2000*(n-1))
+        + (ph*x + pv*y) / (100*(n-1));
+      if (tTotal > tMax) { tMax = tTotal; maxAng = theta; }
+      if (tTotal < tMin) { tMin = tTotal; minAng = theta; }
+    }
+    return { n, tMax: Math.max(0.05, tMax), tMin: Math.max(0.05, tMin), maxAng, minAng };
+  });
+}
+
+let _results = null, _isMinus = true;
+
+function calculate() {
+  const Fsph = parseFloat(document.getElementById('sphere').value) || 0;
+  const Fcyl = parseFloat(document.getElementById('cyl').value) || 0;
+  const axis = parseFloat(document.getElementById('axis').value) || 0;
+  const A    = parseFloat(document.getElementById('fa').value)  || 52;
+  const B    = parseFloat(document.getElementById('fb').value)  || 38;
+  const DBL  = parseFloat(document.getElementById('dbl').value) || 18;
+  const PD   = parseFloat(document.getElementById('pd').value)  || 32;
+  const FH   = parseFloat(document.getElementById('fh').value)  || 20;
+  const tC   = parseFloat(document.getElementById('ct').value)  || 1.5;
+  const PBO  = parseFloat(document.getElementById('pbo').value) || 0;
+  const PBI  = parseFloat(document.getElementById('pbi').value) || 0;
+  const PBU  = parseFloat(document.getElementById('pbu').value) || 0;
+  const PBD  = parseFloat(document.getElementById('pbd').value) || 0;
+
+  const axisRad = axis * Math.PI / 180;
+  const avgPower = Fsph + Fcyl/2;
+  _isMinus = avgPower <= 0;
+
+  _results = edgeThicknesses(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, tC, PBO, PBI, PBU, PBD);
+  const selN = parseFloat(document.querySelector('.nb.on').dataset.n);
+  const sel = _results.find(r => r.n === selN) || _results[2];
+
+  // Show results section
+  document.getElementById('results').style.display = 'flex';
+
+  // Update diagram
+  updateDiagram(_isMinus, sel, tC);
+  // Update tabs appearance
+  setTabStyle(_isMinus ? 'minus' : 'plus');
+  // Update table
+  updateTable(_results, selN, tC, _isMinus);
+  // Update bar chart
+  updateBars(_results, _isMinus);
+
+  // Scroll to results
+  setTimeout(() => document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'}), 100);
+}
+
+// ── Tab UI ─────────────────────────────────────────────────────
+function showTab(which) {
+  setTabStyle(which);
+  if (_results) {
+    const selN = parseFloat(document.querySelector('.nb.on').dataset.n);
+    const sel = _results.find(r => r.n === selN) || _results[2];
+    const tC = parseFloat(document.getElementById('ct').value) || 1.5;
+    updateDiagram(which === 'minus', sel, tC);
+  }
+}
+function setTabStyle(which) {
+  const tm = document.getElementById('tab-minus');
+  const tp = document.getElementById('tab-plus');
+  tm.className = 'dtab ' + (which === 'minus' ? 'minus-active' : 'minus-inactive');
+  tp.className = 'dtab ' + (which === 'plus'  ? 'plus-active'  : 'plus-inactive');
+}
+
+// ── SVG Diagram ─────────────────────────────────────────────────
+function updateDiagram(isMinus, sel, tCenter) {
+  const svg = document.getElementById('lens-svg');
+  const maxT = sel.tMax.toFixed(1), minT = sel.tMin.toFixed(1);
+
+  // Angle labels
+  function angLabel(rad) {
+    const deg = ((rad * 180 / Math.PI) % 360 + 360) % 360;
+    if (deg < 22.5 || deg >= 337.5) return '0°';
+    if (deg < 67.5)  return '45°';
+    if (deg < 112.5) return '90°';
+    if (deg < 157.5) return '135°';
+    if (deg < 202.5) return '180°';
+    if (deg < 247.5) return '225°';
+    if (deg < 292.5) return '270°';
+    return '315°';
+  }
+
+  if (isMinus) {
+    // Meniscus: front convex, back more convex, edge thick, center thin
+    svg.innerHTML = `
+    <defs>
+      <linearGradient id="mg" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#42A5F5" stop-opacity="0.9"/>
+        <stop offset="50%" stop-color="#E3F2FD" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#42A5F5" stop-opacity="0.85"/>
+      </linearGradient>
+      <marker id="a1" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="a2" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="a3" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
+      <marker id="a4" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
+    </defs>
+    <rect width="320" height="160" fill="#F8FAFF" rx="10"/>
+    <!-- Meniscus shape: front gentle convex, back steeper convex (both curve same direction) -->
+    <path d="M 125,14 Q 108,80 125,146 L 196,146 Q 120,80 196,14 Z" fill="url(#mg)" stroke="#1565C0" stroke-width="2"/>
+    <path d="M 125,14 Q 108,80 125,146" fill="none" stroke="#1976D2" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 196,14 Q 120,80 196,146" fill="none" stroke="#1976D2" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- OC crosshair -->
+    <circle cx="158" cy="86" r="4" fill="none" stroke="#FF9800" stroke-width="2"/>
+    <line x1="152" y1="86" x2="164" y2="86" stroke="#FF9800" stroke-width="1.5"/>
+    <line x1="158" y1="80" x2="158" y2="92" stroke="#FF9800" stroke-width="1.5"/>
+    <!-- Max edge arrow (left) -->
+    <line x1="70" y1="14" x2="70" y2="146" stroke="#E53935" stroke-width="2" marker-start="url(#a1)" marker-end="url(#a2)"/>
+    <line x1="70" y1="14" x2="125" y2="14" stroke="#E53935" stroke-width="1" stroke-dasharray="3,2"/>
+    <line x1="70" y1="146" x2="125" y2="146" stroke="#E53935" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="3" y="66" width="60" height="40" rx="8" fill="#E53935"/>
+    <text x="33" y="81" text-anchor="middle" font-size="8.5" font-weight="800" fill="white">最大邊緣</text>
+    <text x="33" y="96" text-anchor="middle" font-size="17" font-weight="900" fill="white">${maxT}</text>
+    <text x="33" y="104" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.8)">mm</text>
+    <!-- Min edge arrow (right) -->
+    <line x1="252" y1="46" x2="252" y2="126" stroke="#7B1FA2" stroke-width="2" marker-start="url(#a3)" marker-end="url(#a4)"/>
+    <line x1="196" y1="46" x2="252" y2="46" stroke="#7B1FA2" stroke-width="1" stroke-dasharray="3,2"/>
+    <line x1="196" y1="126" x2="252" y2="126" stroke="#7B1FA2" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="257" y="66" width="60" height="40" rx="8" fill="#7B1FA2"/>
+    <text x="287" y="81" text-anchor="middle" font-size="8.5" font-weight="800" fill="white">最小邊緣</text>
+    <text x="287" y="96" text-anchor="middle" font-size="17" font-weight="900" fill="white">${minT}</text>
+    <text x="287" y="104" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.8)">mm</text>
+    <!-- Surface labels -->
+    <text x="113" y="42" text-anchor="middle" font-size="8" fill="#1565C0" font-weight="700">前表面</text>
+    <text x="210" y="42" text-anchor="middle" font-size="8" fill="#1565C0" font-weight="700">後表面</text>
+    <text x="160" y="157" text-anchor="middle" font-size="7.5" fill="#888">負度數：邊緣厚，中心薄</text>`;
+    // Badges
+    document.getElementById('badges').innerHTML = `
+    <div class="badge" style="background:#FFEBEE;border-color:#E53935">
+      <div class="bl" style="color:#B71C1C">最大邊緣 Max Edge</div>
+      <div class="bs">${angLabel(sel.maxAng)} 方向</div>
+      <div><span class="bv" style="color:#E53935">${maxT}</span><span class="bu"> mm</span></div>
+    </div>
+    <div class="badge" style="background:#F3E5F5;border-color:#7B1FA2">
+      <div class="bl" style="color:#4A148C">最小邊緣 Min Edge</div>
+      <div class="bs">${angLabel(sel.minAng)} 方向</div>
+      <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
+    </div>`;
+  } else {
+    // Biconvex: both surfaces bow outward, center thick, edge thin
+    svg.innerHTML = `
+    <defs>
+      <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#A5D6A7" stop-opacity="0.85"/>
+        <stop offset="50%" stop-color="#E8F5E9" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="#A5D6A7" stop-opacity="0.85"/>
+      </linearGradient>
+      <marker id="b1" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="b2" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="b3" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
+      <marker id="b4" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
+    </defs>
+    <rect width="320" height="160" fill="#F8FFF8" rx="10"/>
+    <!-- Biconvex: front bows left, back bows right -->
+    <path d="M 135,14 Q 105,80 135,146 L 185,146 Q 215,80 185,14 Z" fill="url(#pg)" stroke="#2E7D32" stroke-width="2"/>
+    <path d="M 135,14 Q 105,80 135,146" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 185,14 Q 215,80 185,146" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- OC crosshair -->
+    <circle cx="160" cy="80" r="4" fill="none" stroke="#FF9800" stroke-width="2"/>
+    <line x1="154" y1="80" x2="166" y2="80" stroke="#FF9800" stroke-width="1.5"/>
+    <line x1="160" y1="74" x2="160" y2="86" stroke="#FF9800" stroke-width="1.5"/>
+    <!-- Max center thickness (horizontal arrow through center) -->
+    <line x1="108" y1="80" x2="212" y2="80" stroke="#E53935" stroke-width="2" marker-start="url(#b1)" marker-end="url(#b2)"/>
+    <rect x="126" y="66" width="68" height="28" rx="7" fill="#E53935"/>
+    <text x="160" y="77" text-anchor="middle" font-size="8" font-weight="800" fill="white">中心最厚</text>
+    <text x="160" y="88" text-anchor="middle" font-size="9" fill="white">${maxT} mm</text>
+    <!-- Min edge thickness at top -->
+    <line x1="135" y1="10" x2="185" y2="10" stroke="#7B1FA2" stroke-width="2" marker-start="url(#b3)" marker-end="url(#b4)"/>
+    <rect x="124" y="0" width="72" height="17" rx="5" fill="#7B1FA2"/>
+    <text x="160" y="12" text-anchor="middle" font-size="9" font-weight="800" fill="white">邊緣 ${minT} mm</text>
+    <!-- Surface labels -->
+    <text x="108" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">前表面</text>
+    <text x="212" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">後表面</text>
+    <text x="160" y="157" text-anchor="middle" font-size="7.5" fill="#888">正度數：中心厚，邊緣薄</text>`;
+    document.getElementById('badges').innerHTML = `
+    <div class="badge" style="background:#FFEBEE;border-color:#E53935">
+      <div class="bl" style="color:#B71C1C">中心厚度 Center</div>
+      <div class="bs">光學中心位置</div>
+      <div><span class="bv" style="color:#E53935">${maxT}</span><span class="bu"> mm</span></div>
+    </div>
+    <div class="badge" style="background:#F3E5F5;border-color:#7B1FA2">
+      <div class="bl" style="color:#4A148C">邊緣厚度 Edge</div>
+      <div class="bs">最薄處</div>
+      <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
+    </div>`;
+  }
+}
+
+// ── Comparison table ───────────────────────────────────────────
+const nNames = {'1.5':'標準','1.56':'輕薄','1.6':'薄','1.67':'超薄','1.74':'極薄'};
+const nColors = ['#E53935','#FF7043','#FFA726','#66BB6A','#26A69A'];
+function updateTable(results, selN, tCenter, isMinus) {
+  document.getElementById('th-center').textContent = isMinus ? '中心厚' : '中心厚';
+  document.getElementById('th-edge').textContent   = isMinus ? '邊緣最厚' : '中心最厚';
+  const base = results[0];
+  const html = results.map((r, i) => {
+    const hl = r.n === selN ? ' hl' : '';
+    const label = r.n === selN ? r.n + ' ✓' : r.n;
+    const save = i === 0 ? '—' : '−' + (base.tMax - r.tMax).toFixed(1);
+    const saveStyle = i === 0 ? 'color:#aaa' : '';
+    return `<div class="trow${hl}">
+      <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
+      <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
+      <div class="tv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</div>
+      <div class="sv" style="${saveStyle}">${save}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('tbl-body').innerHTML = html;
+}
+
+// ── Bar chart ──────────────────────────────────────────────────
+function updateBars(results, isMinus) {
+  const maxVal = Math.max(...results.map(r => r.tMax));
+  const html = results.map((r, i) => {
+    const pct = (r.tMax / maxVal * 100).toFixed(1);
+    return `<div class="br">
+      <span class="brl" style="color:${nColors[i]}">${r.n}</span>
+      <div class="brt"><div class="brf" style="width:${pct}%;background:${nColors[i]}"></div></div>
+      <span class="brv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</span>
+    </div>`;
+  }).join('');
+  document.getElementById('bar-wrap').innerHTML = html;
+}
+
+// ── Service Worker ─────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+</script>
+</body>
+</html>
