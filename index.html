@@ -291,81 +291,105 @@ function setPreset(btn, val) {
 }
 
 // ── Core calculation ───────────────────────────────────────────
-function edgeThicknesses(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, tCenter, PBO, PBI, PBU, PBD) {
-  const indices = [1.50, 1.56, 1.60, 1.67, 1.74];
+// Key insight: t_edge(θ) = tCenter + factor(θ)/(2000*(n-1))
+// where factor(θ) = -F(θ)*r² + 20*(ph*x + pv*y)  ← n-independent!
+//
+// MINUS lens (F<0): factor > 0 everywhere → edges always thicker than center
+//   Fixed: center thickness (input)
+//   Variable per n: maxEdge = tCenter + K_max/(2000*(n-1))   higher n → thinner edge ✓
+//
+// PLUS lens (F>0): factor < 0 at far edges → edges thinner than center
+//   Fixed: min edge thickness = tCenter + K_min/(2000*(selectedN-1))
+//   Variable per n: center = tMinEdge - K_min/(2000*(n-1))   higher n → thinner center ✓
+
+function computeK(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, PBO, PBI, PBU, PBD) {
   const ph = PBO - PBI, pv = PBU - PBD;
   const a = A/2, b = B/2;
-  const decIn = (A + DBL)/2 - PD;
-  // Frame center relative to OC: temporal+ x, superior+ y
-  const cx = decIn, cy = b - FH;
+  const cx = (A + DBL)/2 - PD;   // decentration (temporal direction)
+  const cy = b - FH;              // frame centre offset from OC (superior direction)
   const N = 720;
-
-  return indices.map(n => {
-    let tMax = -Infinity, tMin = Infinity;
-    let maxAng = 0, minAng = 0;
-    for (let i = 0; i < N; i++) {
-      const theta = i * 2 * Math.PI / N;
-      const cosT = Math.cos(theta), sinT = Math.sin(theta);
-      // Ellipse intersection
-      const qa = (cosT/a)**2 + (sinT/b)**2;
-      const qb = -2*(cx*cosT/(a*a) + cy*sinT/(b*b));
-      const qc = (cx/a)**2 + (cy/b)**2 - 1;
-      const disc = qb*qb - 4*qa*qc;
-      if (disc < 0) continue;
-      const r = Math.max((-qb+Math.sqrt(disc))/(2*qa), (-qb-Math.sqrt(disc))/(2*qa));
-      if (r <= 0) continue;
-      // Power at meridian
-      const Ft = Fsph + Fcyl * Math.sin(theta - axisRad)**2;
-      // Prism contribution
-      const x = r*cosT, y = r*sinT;
-      const tTotal = tCenter
-        - Ft * r*r / (2000*(n-1))
-        + (ph*x + pv*y) / (100*(n-1));
-      if (tTotal > tMax) { tMax = tTotal; maxAng = theta; }
-      if (tTotal < tMin) { tMin = tTotal; minAng = theta; }
-    }
-    return { n, tMax: Math.max(0.05, tMax), tMin: Math.max(0.05, tMin), maxAng, minAng };
-  });
+  let K_max = -Infinity, K_min = Infinity, maxAng = 0, minAng = 0;
+  for (let i = 0; i < N; i++) {
+    const theta = i * 2 * Math.PI / N;
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+    const qa = (cosT/a)**2 + (sinT/b)**2;
+    const qb = -2*(cx*cosT/(a*a) + cy*sinT/(b*b));
+    const qc = (cx/a)**2 + (cy/b)**2 - 1;
+    const disc = qb*qb - 4*qa*qc;
+    if (disc < 0) continue;
+    const r = Math.max((-qb+Math.sqrt(disc))/(2*qa), (-qb-Math.sqrt(disc))/(2*qa));
+    if (r <= 0) continue;
+    const Ft = Fsph + Fcyl * Math.sin(theta - axisRad)**2;
+    const x = r*cosT, y = r*sinT;
+    const factor = -Ft*r*r + 20*(ph*x + pv*y);
+    if (factor > K_max) { K_max = factor; maxAng = theta; }
+    if (factor < K_min) { K_min = factor; minAng = theta; }
+  }
+  return { K_max, K_min, maxAng, minAng };
 }
 
+const INDICES = [1.50, 1.56, 1.60, 1.67, 1.74];
 let _results = null, _isMinus = true;
 
 function calculate() {
   const Fsph = parseFloat(document.getElementById('sphere').value) || 0;
-  const Fcyl = parseFloat(document.getElementById('cyl').value) || 0;
-  const axis = parseFloat(document.getElementById('axis').value) || 0;
-  const A    = parseFloat(document.getElementById('fa').value)  || 52;
-  const B    = parseFloat(document.getElementById('fb').value)  || 38;
-  const DBL  = parseFloat(document.getElementById('dbl').value) || 18;
-  const PD   = parseFloat(document.getElementById('pd').value)  || 32;
-  const FH   = parseFloat(document.getElementById('fh').value)  || 20;
-  const tC   = parseFloat(document.getElementById('ct').value)  || 1.5;
-  const PBO  = parseFloat(document.getElementById('pbo').value) || 0;
-  const PBI  = parseFloat(document.getElementById('pbi').value) || 0;
-  const PBU  = parseFloat(document.getElementById('pbu').value) || 0;
-  const PBD  = parseFloat(document.getElementById('pbd').value) || 0;
+  const Fcyl = parseFloat(document.getElementById('cyl').value)    || 0;
+  const axis = parseFloat(document.getElementById('axis').value)   || 0;
+  const A    = parseFloat(document.getElementById('fa').value)     || 52;
+  const B    = parseFloat(document.getElementById('fb').value)     || 38;
+  const DBL  = parseFloat(document.getElementById('dbl').value)    || 18;
+  const PD   = parseFloat(document.getElementById('pd').value)     || 32;
+  const FH   = parseFloat(document.getElementById('fh').value)     || 20;
+  const tC   = parseFloat(document.getElementById('ct').value)     || 1.5;
+  const PBO  = parseFloat(document.getElementById('pbo').value)    || 0;
+  const PBI  = parseFloat(document.getElementById('pbi').value)    || 0;
+  const PBU  = parseFloat(document.getElementById('pbu').value)    || 0;
+  const PBD  = parseFloat(document.getElementById('pbd').value)    || 0;
 
   const axisRad = axis * Math.PI / 180;
-  const avgPower = Fsph + Fcyl/2;
-  _isMinus = avgPower <= 0;
-
-  _results = edgeThicknesses(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, tC, PBO, PBI, PBU, PBD);
+  _isMinus = (Fsph + Fcyl/2) <= 0;
   const selN = parseFloat(document.querySelector('.nb.on').dataset.n);
-  const sel = _results.find(r => r.n === selN) || _results[2];
 
-  // Show results section
+  const { K_max, K_min, maxAng, minAng } =
+    computeK(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, PBO, PBI, PBU, PBD);
+
+  if (_isMinus) {
+    // Fixed: center = tC. Variable: max edge per n (shrinks with higher n).
+    // Also compute min edge for diagram display.
+    const tMinEdge_sel = Math.max(0.05, tC + K_min/(2000*(selN-1)));
+    _results = {
+      rows: INDICES.map(n => ({
+        n,
+        tMain: Math.max(0.1, tC + K_max/(2000*(n-1))),  // max edge
+        tSub:  Math.max(0.05, tC + K_min/(2000*(n-1)))  // min edge
+      })),
+      tCenter: tC,
+      tMinEdge: tMinEdge_sel,
+      maxAng, minAng
+    };
+  } else {
+    // Fixed: min edge = tC + K_min/(2000*(selN-1)).
+    // Variable: center per n = tMinEdge - K_min/(2000*(n-1)).
+    // Higher n → smaller -K_min/(2000*(n-1)) → thinner center ✓
+    const tMinEdge = Math.max(0.1, tC + K_min/(2000*(selN-1)));
+    _results = {
+      rows: INDICES.map(n => ({
+        n,
+        tMain: Math.max(tMinEdge + 0.05, tMinEdge - K_min/(2000*(n-1))),  // center
+        tSub:  tMinEdge                                                     // min edge (fixed)
+      })),
+      tCenter: tC,
+      tMinEdge,
+      maxAng, minAng
+    };
+  }
+
   document.getElementById('results').style.display = 'flex';
-
-  // Update diagram
-  updateDiagram(_isMinus, sel, tC);
-  // Update tabs appearance
+  const sel = _results.rows.find(r => r.n === selN) || _results.rows[2];
+  updateDiagram(_isMinus, sel, _results.tCenter, _results.tMinEdge, _results.maxAng, _results.minAng);
   setTabStyle(_isMinus ? 'minus' : 'plus');
-  // Update table
-  updateTable(_results, selN, tC, _isMinus);
-  // Update bar chart
-  updateBars(_results, _isMinus);
-
-  // Scroll to results
+  updateTable(_results.rows, selN, _results, _isMinus);
+  updateBars(_results.rows, _isMinus);
   setTimeout(() => document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'}), 100);
 }
 
@@ -374,9 +398,8 @@ function showTab(which) {
   setTabStyle(which);
   if (_results) {
     const selN = parseFloat(document.querySelector('.nb.on').dataset.n);
-    const sel = _results.find(r => r.n === selN) || _results[2];
-    const tC = parseFloat(document.getElementById('ct').value) || 1.5;
-    updateDiagram(which === 'minus', sel, tC);
+    const sel = _results.rows.find(r => r.n === selN) || _results.rows[2];
+    updateDiagram(which === 'minus', sel, _results.tCenter, _results.tMinEdge, _results.maxAng, _results.minAng);
   }
 }
 function setTabStyle(which) {
@@ -387,9 +410,12 @@ function setTabStyle(which) {
 }
 
 // ── SVG Diagram ─────────────────────────────────────────────────
-function updateDiagram(isMinus, sel, tCenter) {
+function updateDiagram(isMinus, sel, tCenter, tMinEdge, maxAng, minAng) {
   const svg = document.getElementById('lens-svg');
-  const maxT = sel.tMax.toFixed(1), minT = sel.tMin.toFixed(1);
+  // Minus: sel.tMain = max edge, sel.tSub = min edge, tCenter = center (fixed)
+  // Plus:  sel.tMain = center (variable), sel.tSub = min edge (fixed = tMinEdge)
+  const maxT = sel.tMain.toFixed(1);
+  const minT = isMinus ? sel.tSub.toFixed(1) : tMinEdge.toFixed(1);
 
   // Angle labels
   function angLabel(rad) {
@@ -451,19 +477,18 @@ function updateDiagram(isMinus, sel, tCenter) {
     document.getElementById('badges').innerHTML = `
     <div class="badge" style="background:#FFEBEE;border-color:#E53935">
       <div class="bl" style="color:#B71C1C">最大邊緣 Max Edge</div>
-      <div class="bs">${angLabel(sel.maxAng)} 方向</div>
+      <div class="bs">${angLabel(maxAng)} 方向</div>
       <div><span class="bv" style="color:#E53935">${maxT}</span><span class="bu"> mm</span></div>
     </div>
     <div class="badge" style="background:#F3E5F5;border-color:#7B1FA2">
       <div class="bl" style="color:#4A148C">最小邊緣 Min Edge</div>
-      <div class="bs">${angLabel(sel.minAng)} 方向</div>
+      <div class="bs">${angLabel(minAng)} 方向</div>
       <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
     </div>`;
   } else {
     // Positive meniscus: both surfaces curve same direction (left),
     // front surface MORE curved (steeper) → thick center, thin edges
-    // Front bezier midpoint ≈ x=124, back bezier midpoint ≈ x=184
-    const cT = tCenter.toFixed(1);
+    // sel.tMain = center thickness for selected n (decreases with higher n)
     svg.innerHTML = `
     <defs>
       <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">
@@ -499,17 +524,17 @@ function updateDiagram(isMinus, sel, tCenter) {
     <text x="124" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">前表面</text>
     <text x="200" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">後表面</text>
     <text x="160" y="157" text-anchor="middle" font-size="7.5" fill="#888">正度數新月形：中心厚，邊緣薄</text>`;
-    // Badge 1: center thickness (= user input, always the thickest point for plus)
-    // Badge 2: min edge (thinnest point, improves with higher refractive index)
+    // Plus: Badge 1 = center thickness for selected n (= user input).
+    //       Badge 2 = min edge (fixed for all n, derived from user input + selected n).
     document.getElementById('badges').innerHTML = `
     <div class="badge" style="background:#FFEBEE;border-color:#E53935">
       <div class="bl" style="color:#B71C1C">中心厚度 Center</div>
       <div class="bs">光學中心（最厚處）</div>
-      <div><span class="bv" style="color:#E53935">${cT}</span><span class="bu"> mm</span></div>
+      <div><span class="bv" style="color:#E53935">${maxT}</span><span class="bu"> mm</span></div>
     </div>
     <div class="badge" style="background:#F3E5F5;border-color:#7B1FA2">
       <div class="bl" style="color:#4A148C">最薄邊緣 Min Edge</div>
-      <div class="bs">${angLabel(sel.minAng)} 方向</div>
+      <div class="bs">${angLabel(minAng)} 方向（固定）</div>
       <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
     </div>`;
   }
@@ -518,55 +543,41 @@ function updateDiagram(isMinus, sel, tCenter) {
 // ── Comparison table ───────────────────────────────────────────
 const nNames = {'1.5':'標準','1.56':'輕薄','1.6':'薄','1.67':'超薄','1.74':'極薄'};
 const nColors = ['#E53935','#FF7043','#FFA726','#66BB6A','#26A69A'];
-function updateTable(results, selN, tCenter, isMinus) {
-  // Minus: show max edge (decreases with higher n → "節省")
-  // Plus:  show min edge (increases with higher n → "增厚", higher n = less dangerously thin edge)
-  document.getElementById('th-center').textContent = '中心厚';
-  document.getElementById('th-edge').textContent   = isMinus ? '邊緣最厚' : '邊緣最薄';
-  document.getElementById('th-save').textContent   = isMinus ? '節省' : '增厚';
-  const base = results[0];
-  const html = results.map((r, i) => {
+function updateTable(rows, selN, meta, isMinus) {
+  // Minus: col2 = center (fixed), col3 = max edge (decreases with higher n)
+  // Plus:  col2 = min edge (fixed), col3 = center (decreases with higher n) ← KEY FIX
+  document.getElementById('th-center').textContent = isMinus ? '中心厚' : '邊緣最薄';
+  document.getElementById('th-edge').textContent   = isMinus ? '邊緣最厚' : '中心最厚';
+  document.getElementById('th-save').textContent   = '節省';
+  const col2Fixed = isMinus ? meta.tCenter : meta.tMinEdge;
+  const base = rows[0];
+  const html = rows.map((r, i) => {
     const hl = r.n === selN ? ' hl' : '';
     const label = r.n === selN ? r.n + ' ✓' : r.n;
-    let saveStr, saveStyle;
-    if (isMinus) {
-      // Edge thins with higher n → savings are positive
-      saveStr = i === 0 ? '—' : '−' + (base.tMax - r.tMax).toFixed(1);
-      saveStyle = i === 0 ? 'color:#aaa' : 'color:#43A047';
-      return `<div class="trow${hl}">
-        <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
-        <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
-        <div class="tv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</div>
-        <div class="sv" style="${saveStyle}">${saveStr}</div>
-      </div>`;
-    } else {
-      // Plus lens: min edge gets THICKER with higher n (better, less risk of too-thin edge)
-      saveStr = i === 0 ? '—' : '+' + (r.tMin - base.tMin).toFixed(1);
-      saveStyle = i === 0 ? 'color:#aaa' : 'color:#1976D2';
-      return `<div class="trow${hl}">
-        <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
-        <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
-        <div class="tv" style="color:${nColors[i]}">${r.tMin.toFixed(1)}mm</div>
-        <div class="sv" style="${saveStyle}">${saveStr}</div>
-      </div>`;
-    }
+    // tMain: max edge for minus, center for plus — both DECREASE with higher n
+    const saveStr = i === 0 ? '—' : '−' + (base.tMain - r.tMain).toFixed(1);
+    const saveStyle = i === 0 ? 'color:#aaa' : 'color:#43A047';
+    return `<div class="trow${hl}">
+      <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
+      <div class="tv" style="color:#555">${col2Fixed.toFixed(1)}mm</div>
+      <div class="tv" style="color:${nColors[i]}">${r.tMain.toFixed(1)}mm</div>
+      <div class="sv" style="${saveStyle}">${saveStr}</div>
+    </div>`;
   }).join('');
   document.getElementById('tbl-body').innerHTML = html;
 }
 
 // ── Bar chart ──────────────────────────────────────────────────
-function updateBars(results, isMinus) {
-  // Minus: bar = max edge (shorter = better, baseline is n=1.50 at 100%)
-  // Plus:  bar = min edge (longer = better, highest n=1.74 at 100%)
-  const vals = isMinus ? results.map(r => r.tMax) : results.map(r => r.tMin);
-  const maxVal = Math.max(...vals);
-  const html = results.map((r, i) => {
-    const val = vals[i];
-    const pct = maxVal > 0 ? (val / maxVal * 100).toFixed(1) : 0;
+function updateBars(rows, isMinus) {
+  // tMain always decreases with higher n (max edge for minus, center for plus)
+  // → n=1.50 always has longest bar (100%), bars shorten with higher n
+  const maxVal = rows[0].tMain;
+  const html = rows.map((r, i) => {
+    const pct = maxVal > 0 ? (r.tMain / maxVal * 100).toFixed(1) : 0;
     return `<div class="br">
       <span class="brl" style="color:${nColors[i]}">${r.n}</span>
       <div class="brt"><div class="brf" style="width:${pct}%;background:${nColors[i]}"></div></div>
-      <span class="brv" style="color:${nColors[i]}">${val.toFixed(1)}mm</span>
+      <span class="brv" style="color:${nColors[i]}">${r.tMain.toFixed(1)}mm</span>
     </div>`;
   }).join('');
   document.getElementById('bar-wrap').innerHTML = html;
