@@ -60,7 +60,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pbt.on{background:#FFF3E0;border-color:#FF9800;color:#E65100}
 
 /* Refractive index */
-.n-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.n-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .nb{border:2px solid #e8e8e8;border-radius:10px;padding:8px 2px;text-align:center;cursor:pointer;transition:all .15s;background:#fff}
 .nb.on{border-color:#0077B6;background:#E3F2FD}
 .nv{font-size:13px;font-weight:800;display:block;color:#aaa}
@@ -206,7 +206,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="font-size:10px;font-weight:700;color:#555;margin-bottom:8px">折射率 Refractive Index</div>
       <div class="n-grid">
         <div class="nb" data-n="1.50" onclick="selectN(this)"><span class="nv">1.50</span><span class="nl">標準</span></div>
-        <div class="nb" data-n="1.56" onclick="selectN(this)"><span class="nv">1.56</span><span class="nl">輕薄</span></div>
         <div class="nb on" data-n="1.60" onclick="selectN(this)"><span class="nv">1.60</span><span class="nl">薄</span></div>
         <div class="nb" data-n="1.67" onclick="selectN(this)"><span class="nv">1.67</span><span class="nl">超薄</span></div>
         <div class="nb" data-n="1.74" onclick="selectN(this)"><span class="nv">1.74</span><span class="nl">極薄</span></div>
@@ -328,7 +327,7 @@ function computeK(Fsph, Fcyl, axisRad, A, B, PD, DBL, FH, PBO, PBI, PBU, PBD) {
   return { K_max, K_min, maxAng, minAng };
 }
 
-const INDICES = [1.50, 1.56, 1.60, 1.67, 1.74];
+const INDICES = [1.50, 1.60, 1.67, 1.74];
 let _results = null, _isMinus = true;
 
 function calculate() {
@@ -541,8 +540,8 @@ function updateDiagram(isMinus, sel, tCenter, tMinEdge, maxAng, minAng) {
 }
 
 // ── Comparison table ───────────────────────────────────────────
-const nNames = {'1.5':'標準','1.56':'輕薄','1.6':'薄','1.67':'超薄','1.74':'極薄'};
-const nColors = ['#E53935','#FF7043','#FFA726','#66BB6A','#26A69A'];
+const nNames = {'1.5':'標準','1.6':'薄','1.67':'超薄','1.74':'極薄'};
+const nColors = ['#E53935','#FFA726','#66BB6A','#26A69A'];
 function updateTable(rows, selN, meta, isMinus) {
   // Minus: col2 = center (fixed), col3 = max edge (decreases with higher n)
   // Plus:  col2 = min edge (fixed), col3 = center (decreases with higher n) ← KEY FIX
