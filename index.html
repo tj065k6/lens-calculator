@@ -515,7 +515,7 @@ function updateDiagram(isMinus, sel, tCenter, tMinEdge, maxAng, minAng) {
     <line x1="124" y1="80" x2="184" y2="80" stroke="#E53935" stroke-width="2" marker-start="url(#b1)" marker-end="url(#b2)"/>
     <rect x="120" y="65" width="68" height="30" rx="7" fill="#E53935"/>
     <text x="154" y="76" text-anchor="middle" font-size="8" font-weight="800" fill="white">中心最厚</text>
-    <text x="154" y="88" text-anchor="middle" font-size="9.5" font-weight="900" fill="white">${cT} mm</text>
+    <text x="154" y="88" text-anchor="middle" font-size="9.5" font-weight="900" fill="white">${maxT} mm</text>
     <!-- Min edge at top (between front x=152 and back x=190 at y=16) -->
     <line x1="152" y1="10" x2="190" y2="10" stroke="#7B1FA2" stroke-width="2" marker-start="url(#b3)" marker-end="url(#b4)"/>
     <rect x="130" y="0" width="70" height="17" rx="5" fill="#7B1FA2"/>
@@ -555,7 +555,8 @@ function updateTable(rows, selN, meta, isMinus) {
     const hl = r.n === selN ? ' hl' : '';
     const label = r.n === selN ? r.n + ' ✓' : r.n;
     // tMain: max edge for minus, center for plus — both DECREASE with higher n
-    const saveStr = i === 0 ? '—' : '−' + (base.tMain - r.tMain).toFixed(1);
+    const pct = i === 0 ? 0 : ((base.tMain - r.tMain) / base.tMain * 100);
+    const saveStr = i === 0 ? '—' : '−' + pct.toFixed(0) + '%';
     const saveStyle = i === 0 ? 'color:#aaa' : 'color:#43A047';
     return `<div class="trow${hl}">
       <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
