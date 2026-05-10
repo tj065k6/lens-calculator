@@ -236,7 +236,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span>折射率</span>
         <span id="th-center">中心厚</span>
         <span id="th-edge">邊緣最厚</span>
-        <span>節省</span>
+        <span id="th-save">節省</span>
       </div>
       <div id="tbl-body"></div>
     </div>
@@ -460,50 +460,56 @@ function updateDiagram(isMinus, sel, tCenter) {
       <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
     </div>`;
   } else {
-    // Biconvex: both surfaces bow outward, center thick, edge thin
+    // Positive meniscus: both surfaces curve same direction (left),
+    // front surface MORE curved (steeper) → thick center, thin edges
+    // Front bezier midpoint ≈ x=124, back bezier midpoint ≈ x=184
+    const cT = tCenter.toFixed(1);
     svg.innerHTML = `
     <defs>
       <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#A5D6A7" stop-opacity="0.85"/>
-        <stop offset="50%" stop-color="#E8F5E9" stop-opacity="0.7"/>
+        <stop offset="50%" stop-color="#E8F5E9" stop-opacity="0.65"/>
         <stop offset="100%" stop-color="#A5D6A7" stop-opacity="0.85"/>
       </linearGradient>
-      <marker id="b1" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
-      <marker id="b2" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="b1" markerWidth="8" markerHeight="8" refX="1.5" refY="4" orient="auto"><path d="M7,2 L1,4 L7,6" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
+      <marker id="b2" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M1,2 L7,4 L1,6" fill="none" stroke="#E53935" stroke-width="1.5"/></marker>
       <marker id="b3" markerWidth="8" markerHeight="8" refX="4" refY="1.5" orient="auto"><path d="M2,7 L4,1 L6,7" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
       <marker id="b4" markerWidth="8" markerHeight="8" refX="4" refY="6.5" orient="auto"><path d="M2,1 L4,7 L6,1" fill="none" stroke="#7B1FA2" stroke-width="1.5"/></marker>
     </defs>
     <rect width="320" height="160" fill="#F8FFF8" rx="10"/>
-    <!-- Biconvex: front bows left, back bows right -->
-    <path d="M 135,14 Q 105,80 135,146 L 185,146 Q 215,80 185,14 Z" fill="url(#pg)" stroke="#2E7D32" stroke-width="2"/>
-    <path d="M 135,14 Q 105,80 135,146" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M 185,14 Q 215,80 185,146" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
-    <!-- OC crosshair -->
-    <circle cx="160" cy="80" r="4" fill="none" stroke="#FF9800" stroke-width="2"/>
-    <line x1="154" y1="80" x2="166" y2="80" stroke="#FF9800" stroke-width="1.5"/>
-    <line x1="160" y1="74" x2="160" y2="86" stroke="#FF9800" stroke-width="1.5"/>
-    <!-- Max center thickness (horizontal arrow through center) -->
-    <line x1="108" y1="80" x2="212" y2="80" stroke="#E53935" stroke-width="2" marker-start="url(#b1)" marker-end="url(#b2)"/>
-    <rect x="126" y="66" width="68" height="28" rx="7" fill="#E53935"/>
-    <text x="160" y="77" text-anchor="middle" font-size="8" font-weight="800" fill="white">中心最厚</text>
-    <text x="160" y="88" text-anchor="middle" font-size="9" fill="white">${maxT} mm</text>
-    <!-- Min edge thickness at top -->
-    <line x1="135" y1="10" x2="185" y2="10" stroke="#7B1FA2" stroke-width="2" marker-start="url(#b3)" marker-end="url(#b4)"/>
-    <rect x="124" y="0" width="72" height="17" rx="5" fill="#7B1FA2"/>
-    <text x="160" y="12" text-anchor="middle" font-size="9" font-weight="800" fill="white">邊緣 ${minT} mm</text>
+    <!-- Positive meniscus: front (left boundary) more curved, back (right boundary) less curved.
+         Both surfaces open to the LEFT. Thick center, thin edges. -->
+    <path d="M 152,16 Q 95,80 152,144 L 190,144 Q 177,80 190,16 Z" fill="url(#pg)" stroke="#2E7D32" stroke-width="2"/>
+    <path d="M 152,16 Q 95,80 152,144" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 190,16 Q 177,80 190,144" fill="none" stroke="#388E3C" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- OC crosshair at center (bezier midpoints: front≈124, back≈184) -->
+    <circle cx="154" cy="80" r="4" fill="none" stroke="#FF9800" stroke-width="2"/>
+    <line x1="148" y1="80" x2="160" y2="80" stroke="#FF9800" stroke-width="1.5"/>
+    <line x1="154" y1="74" x2="154" y2="86" stroke="#FF9800" stroke-width="1.5"/>
+    <!-- Center thickness arrow (horizontal at midpoint, front≈124 to back≈184) -->
+    <line x1="124" y1="80" x2="184" y2="80" stroke="#E53935" stroke-width="2" marker-start="url(#b1)" marker-end="url(#b2)"/>
+    <rect x="120" y="65" width="68" height="30" rx="7" fill="#E53935"/>
+    <text x="154" y="76" text-anchor="middle" font-size="8" font-weight="800" fill="white">中心最厚</text>
+    <text x="154" y="88" text-anchor="middle" font-size="9.5" font-weight="900" fill="white">${cT} mm</text>
+    <!-- Min edge at top (between front x=152 and back x=190 at y=16) -->
+    <line x1="152" y1="10" x2="190" y2="10" stroke="#7B1FA2" stroke-width="2" marker-start="url(#b3)" marker-end="url(#b4)"/>
+    <rect x="130" y="0" width="70" height="17" rx="5" fill="#7B1FA2"/>
+    <text x="165" y="12" text-anchor="middle" font-size="9" font-weight="800" fill="white">邊緣 ${minT} mm</text>
     <!-- Surface labels -->
-    <text x="108" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">前表面</text>
-    <text x="212" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">後表面</text>
-    <text x="160" y="157" text-anchor="middle" font-size="7.5" fill="#888">正度數：中心厚，邊緣薄</text>`;
+    <text x="124" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">前表面</text>
+    <text x="200" y="44" text-anchor="middle" font-size="8" fill="#2E7D32" font-weight="700">後表面</text>
+    <text x="160" y="157" text-anchor="middle" font-size="7.5" fill="#888">正度數新月形：中心厚，邊緣薄</text>`;
+    // Badge 1: center thickness (= user input, always the thickest point for plus)
+    // Badge 2: min edge (thinnest point, improves with higher refractive index)
     document.getElementById('badges').innerHTML = `
     <div class="badge" style="background:#FFEBEE;border-color:#E53935">
       <div class="bl" style="color:#B71C1C">中心厚度 Center</div>
-      <div class="bs">光學中心位置</div>
-      <div><span class="bv" style="color:#E53935">${maxT}</span><span class="bu"> mm</span></div>
+      <div class="bs">光學中心（最厚處）</div>
+      <div><span class="bv" style="color:#E53935">${cT}</span><span class="bu"> mm</span></div>
     </div>
     <div class="badge" style="background:#F3E5F5;border-color:#7B1FA2">
-      <div class="bl" style="color:#4A148C">邊緣厚度 Edge</div>
-      <div class="bs">最薄處</div>
+      <div class="bl" style="color:#4A148C">最薄邊緣 Min Edge</div>
+      <div class="bs">${angLabel(sel.minAng)} 方向</div>
       <div><span class="bv" style="color:#7B1FA2">${minT}</span><span class="bu"> mm</span></div>
     </div>`;
   }
@@ -513,33 +519,54 @@ function updateDiagram(isMinus, sel, tCenter) {
 const nNames = {'1.5':'標準','1.56':'輕薄','1.6':'薄','1.67':'超薄','1.74':'極薄'};
 const nColors = ['#E53935','#FF7043','#FFA726','#66BB6A','#26A69A'];
 function updateTable(results, selN, tCenter, isMinus) {
-  document.getElementById('th-center').textContent = isMinus ? '中心厚' : '中心厚';
-  document.getElementById('th-edge').textContent   = isMinus ? '邊緣最厚' : '中心最厚';
+  // Minus: show max edge (decreases with higher n → "節省")
+  // Plus:  show min edge (increases with higher n → "增厚", higher n = less dangerously thin edge)
+  document.getElementById('th-center').textContent = '中心厚';
+  document.getElementById('th-edge').textContent   = isMinus ? '邊緣最厚' : '邊緣最薄';
+  document.getElementById('th-save').textContent   = isMinus ? '節省' : '增厚';
   const base = results[0];
   const html = results.map((r, i) => {
     const hl = r.n === selN ? ' hl' : '';
     const label = r.n === selN ? r.n + ' ✓' : r.n;
-    const save = i === 0 ? '—' : '−' + (base.tMax - r.tMax).toFixed(1);
-    const saveStyle = i === 0 ? 'color:#aaa' : '';
-    return `<div class="trow${hl}">
-      <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
-      <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
-      <div class="tv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</div>
-      <div class="sv" style="${saveStyle}">${save}</div>
-    </div>`;
+    let saveStr, saveStyle;
+    if (isMinus) {
+      // Edge thins with higher n → savings are positive
+      saveStr = i === 0 ? '—' : '−' + (base.tMax - r.tMax).toFixed(1);
+      saveStyle = i === 0 ? 'color:#aaa' : 'color:#43A047';
+      return `<div class="trow${hl}">
+        <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
+        <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
+        <div class="tv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</div>
+        <div class="sv" style="${saveStyle}">${saveStr}</div>
+      </div>`;
+    } else {
+      // Plus lens: min edge gets THICKER with higher n (better, less risk of too-thin edge)
+      saveStr = i === 0 ? '—' : '+' + (r.tMin - base.tMin).toFixed(1);
+      saveStyle = i === 0 ? 'color:#aaa' : 'color:#1976D2';
+      return `<div class="trow${hl}">
+        <div><span class="nn">${label}</span><span class="nt">${nNames[String(r.n)] || ''}</span></div>
+        <div class="tv" style="color:#555">${tCenter.toFixed(1)}mm</div>
+        <div class="tv" style="color:${nColors[i]}">${r.tMin.toFixed(1)}mm</div>
+        <div class="sv" style="${saveStyle}">${saveStr}</div>
+      </div>`;
+    }
   }).join('');
   document.getElementById('tbl-body').innerHTML = html;
 }
 
 // ── Bar chart ──────────────────────────────────────────────────
 function updateBars(results, isMinus) {
-  const maxVal = Math.max(...results.map(r => r.tMax));
+  // Minus: bar = max edge (shorter = better, baseline is n=1.50 at 100%)
+  // Plus:  bar = min edge (longer = better, highest n=1.74 at 100%)
+  const vals = isMinus ? results.map(r => r.tMax) : results.map(r => r.tMin);
+  const maxVal = Math.max(...vals);
   const html = results.map((r, i) => {
-    const pct = (r.tMax / maxVal * 100).toFixed(1);
+    const val = vals[i];
+    const pct = maxVal > 0 ? (val / maxVal * 100).toFixed(1) : 0;
     return `<div class="br">
       <span class="brl" style="color:${nColors[i]}">${r.n}</span>
       <div class="brt"><div class="brf" style="width:${pct}%;background:${nColors[i]}"></div></div>
-      <span class="brv" style="color:${nColors[i]}">${r.tMax.toFixed(1)}mm</span>
+      <span class="brv" style="color:${nColors[i]}">${val.toFixed(1)}mm</span>
     </div>`;
   }).join('');
   document.getElementById('bar-wrap').innerHTML = html;
